@@ -1,0 +1,10 @@
+﻿@page "/orders/acceptance/{Id:int}"
+
+<PageTitle>Potwierdź zamówienie</PageTitle>
+
+<OrderAcceptanceComponent Id="Id" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+}

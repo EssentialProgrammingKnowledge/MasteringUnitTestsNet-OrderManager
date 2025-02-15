@@ -1,0 +1,45 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@inject ITranslateService TranslateService
+
+<MudDialog>
+    <DialogContent>
+        <MudSelect @bind-Value="orderStatus" data-name="order-status-selection">
+            <MudSelectItem Value="OrderStatus.New">@TranslateService.Translate("ORDER_STATUS_" + OrderStatus.New.ToString())</MudSelectItem>
+            <MudSelectItem Value="OrderStatus.InProgress">@TranslateService.Translate("ORDER_STATUS_" + OrderStatus.InProgress.ToString())</MudSelectItem>
+            <MudSelectItem Value="OrderStatus.Completed">@TranslateService.Translate("ORDER_STATUS_" + OrderStatus.Completed.ToString())</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="ConfirmStatusChange" data-name="order-status-accept-button">Zapisz</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="CloseStatusModal" data-name="order-status-cancel-button">Anuluj</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public OrderDTO Order { get; set; } = null!;
+
+    private OrderStatus orderStatus;
+
+    protected override void OnParametersSet()
+    {
+        if (Order is not null)
+        {
+            orderStatus = Order.OrderStatus;
+        }
+    }
+
+    private void CloseStatusModal()
+    {
+        MudDialog.Close();
+    }
+
+    private void ConfirmStatusChange()
+    {
+        MudDialog.Close(DialogResult.Ok(orderStatus));
+    }
+}

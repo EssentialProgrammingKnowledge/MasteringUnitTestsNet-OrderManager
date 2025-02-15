@@ -1,0 +1,114 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@inject IOrderService OrderService
+@inject ITranslateService TranslateService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="order-acceptance-loading-icon" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudText data-name="order-acceptance-order-number" Typo="Typo.h6">Zamówienie #@order.OrderNumber</MudText>
+                <MudText data-name="order-acceptance-customer-full-name" Typo="Typo.subtitle1">Klient: @order.Customer.FirstName @order.Customer.LastName</MudText>
+                <MudText data-name="order-acceptance-order-status" Typo="Typo.subtitle1">Status: @(TranslateService.Translate("ORDER_STATUS_" + order.OrderStatus.ToString()))</MudText>
+                <MudText data-name="order-acceptance-order-created-at" Typo="Typo.subtitle1">Utworzono: @order.CreatedAt.ToLocalDateTime()</MudText>
+
+                <MudTable Items="@order.Positions" Striped="true" Hover="true" data-name="order-acceptance-positions">
+                    <HeaderContent>
+                        <MudTh>Produkt</MudTh>
+                        <MudTh>Ilość</MudTh>
+                        <MudTh>Cena</MudTh>
+                        <MudTh>Cena łącznie</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd data-name="@($"order-acceptance-position-with-id-{item.Id}-product-name")" DataLabel="ProductName">@item.ProductName</MudTd>
+                        <MudTd data-name="@($"order-acceptance-position-with-id-{item.Id}-quantity")" DataLabel="Quantity">@item.Quantity</MudTd>
+                        <MudTd data-name="@($"order-acceptance-position-with-id-{item.Id}-price")" DataLabel="Price">@item.Price.ToCurrencyString()</MudTd>
+                        <MudTd data-name="@($"order-acceptance-position-with-id-{item.Id}-total-price")" DataLabel="TotalPrice">@item.TotalPrice.ToCurrencyString()</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+
+            <MudPaper Elevation="2" Class="pa-4 mt-3" data-name="order-acceptance-summary">
+                <MudText Typo="Typo.h6">Podsumowanie</MudText>
+                <MudDivider Class="mb-2" />
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.subtitle1">Suma kosztów:</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" Class="text-right">
+                        <MudText Typo="Typo.h6" data-name="order-acceptance-summary-total-price">@(order!.TotalPrice.ToCurrencyString())</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <MudButton Color="Color.Success" OnClick="AcceptOrder" Disabled="@(order!.OrderStatus != OrderStatus.New)" data-name="order-acceptance-submit-button">
+                Akceptuj zamówienie
+            </MudButton>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private OrderDetailsDTO order = null!;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var orderFromBackend = await LoadOrder(Id);
+        if (orderFromBackend is null || orderFromBackend.OrderStatus != OrderStatus.New)
+        {
+            GoToHomePage();
+            return;
+        }
+
+        order = orderFromBackend;
+        isLoading = false;
+    }
+
+    private void GoToHomePage()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private async Task AcceptOrder()
+    {
+        await OrderService.ChangeStatus(Id, OrderStatus.InProgress);
+        Snackbar.Add("Zamówienie przeniosono do statusu w realizacji", Severity.Success);
+        GoToHomePage();
+    }
+
+    private async Task<OrderDetailsDTO?> LoadOrder(int id)
+    {
+        try
+        {
+            var result = await OrderService.GetById(Id);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return null;
+            }
+
+            return result.Data;
+        }
+        catch
+        {
+            Snackbar.Add($"Wystąpił błąd podczas pobierania danych o zamówieniu Id {id}. Prosimy spróbować ponownie później", Severity.Error);
+            return null;
+        }
+    }
+}

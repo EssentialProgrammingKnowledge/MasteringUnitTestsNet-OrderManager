@@ -1,0 +1,171 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@inject IOrderService OrderService
+@inject ITranslateService TranslateService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject HttpClient HttpClient
+@inject NavigationManager NavigationManager
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="orders-loading-icon" />
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchQuery" TextChanged="OnSearchOrder" Immediate="true" Label="Szukaj po numerze zamówienia" Adornment="Adornment.Start" Icon="@Icons.Material.Filled.Search" data-name="orders-search-input" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTable Items="ordersToShow" Hover="true" Bordered="true" Striped="true" data-name="orders-table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Numer zamówienia</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Koszt</MudTh>
+                <MudTh>Data utworzenia</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd data-name="@($"orders-position-column-id-{context.Id}")" DataLabel="Id">@context.Id</MudTd>
+                <MudTd data-name="@($"orders-position-column-with-id-{context.Id}-order-number")" DataLabel="OrderNumber">@context.OrderNumber</MudTd>
+                <MudTd Class="@GetRowClass(context.OrderStatus)" data-name="@($"orders-position-column-with-id-{context.Id}-order-status")" DataLabel="OrderStatus">@TranslateService.Translate("ORDER_STATUS_" + context.OrderStatus.ToString())</MudTd>
+                <MudTd data-name="@($"orders-position-column-with-id-{context.Id}-total-price")" DataLabel="TotalPrice">@(context.TotalPrice.ToCurrencyString())</MudTd>
+                <MudTd data-name="@($"orders-position-column-with-id-{context.Id}-created-at")" DataLabel="CreatedAt">@context.CreatedAt.ToLocalDateTime()</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Zmień status" Placement="Placement.Top" data-name="@($"orders-position-column-status-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"orders-position-column-status-with-id-{context.Id}")"
+                                       @onclick="() => ChangeStatus(context)"
+                                       Icon="@Icons.Material.Filled.Flag"
+                                       Color="Color.Primary" />
+                    </MudTooltip>
+                    <MudTooltip Text="Edytuj zamówienie" Placement="Placement.Top" data-name="@($"orders-position-column-edit-with-id-{context.Id}-tooltip")">
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="() => EditOrder(context)" data-name="@($"orders-position-column-edit-with-id-{context.Id}")" Disabled="context.OrderStatus != OrderStatus.New" />
+                    </MudTooltip>
+                    <MudTooltip Text="Usuń zamówienie" Placement="Placement.Top" data-name="@($"orders-position-column-delete-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"orders-position-column-delete-with-id-{context.Id}")" @onclick="() => DeleteOrder(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="context.OrderStatus != OrderStatus.New" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+
+@code {
+    private bool isLoading = true;
+    private string searchQuery = string.Empty;
+    private IEnumerable<OrderDTO> orders = [];
+    private IEnumerable<OrderDTO> ordersToShow = [];
+    private readonly MessageBoxOptions _deleteModalContent = new MessageBoxOptions
+    {
+        Title = "Usuń produkt",
+        Message = "Czy chcesz usunąć produkt?",
+        YesText = "Tak",
+        NoText = "Nie"
+    };
+    private readonly DialogOptions _deleteModalOptions = new DialogOptions
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+        Position = DialogPosition.Center
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await LoadOrders();
+        ordersToShow = orders;
+        isLoading = false;
+    }
+
+    private string GetRowClass(OrderStatus status)
+    {
+        return status switch
+        {
+            OrderStatus.New => "bg-primary text-white",
+            OrderStatus.InProgress => "bg-warning text-dark",
+            OrderStatus.Completed => "bg-success text-white",
+            _ => ""
+        };
+    }
+
+    private void OnSearchOrder(string term)
+    {
+        ordersToShow = orders
+            .Where(p => p.OrderNumber.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void EditOrder(OrderDTO dto)
+    {
+        NavigationManager.NavigateTo($"/orders/{dto.Id}");
+    }
+
+    private async Task DeleteOrder(int id)
+    {
+        var messageBoxValue = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
+        if (!messageBoxValue.HasValue || !messageBoxValue.Value)
+        {
+            return;
+        }
+
+        await OrderService.Delete(id);
+        await RefreshOrders();
+    }
+
+    private async Task ChangeStatus(OrderDTO order)
+    {
+        var dialog = await DialogService.ShowAsync<OrderChangeStatusComponent>("Zmiana statusu zamówienia", new DialogParameters
+        {
+            { "Order", order }
+        });
+        var result = await dialog.Result;
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var newStatus = result.Data as OrderStatus?;
+        if (newStatus is null || newStatus.Value == order.OrderStatus)
+        {
+            return;
+        }
+
+        await OrderService.ChangeStatus(order.Id, newStatus.Value);
+        await RefreshOrders();
+    }
+
+    private async Task RefreshOrders()
+    {
+        orders = await LoadOrders();
+        OnSearchOrder(searchQuery);
+    }
+
+    private async Task<List<OrderDTO>> LoadOrders()
+    {
+        try
+        {
+            var result = await OrderService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return [];
+            }
+
+            return result.Data ?? [];
+        }
+        catch
+        {
+            Snackbar.Add($"Wystąpił błąd podczas pobierania zamówień. Prosimy spróbować ponownie później", Severity.Error);
+            return [];
+        }
+    }
+}

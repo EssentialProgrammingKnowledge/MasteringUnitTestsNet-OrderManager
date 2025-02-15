@@ -1,0 +1,12 @@
+﻿@page "/orders/{Id:int}"
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+
+<PageTitle>Edycja zamówienia</PageTitle>
+
+<OrderEditComponent Id="Id" />
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+}

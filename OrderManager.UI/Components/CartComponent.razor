@@ -1,0 +1,156 @@
+﻿@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@using System.Globalization
+@inject ICartService CartService
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+
+<MudContainer>
+
+    @if (!carts.Any())
+    {
+        <MudPaper Class="pa-4 mt-3" data-name="carts-empty-info">
+            <MudText Typo="Typo.h6">Twój koszyk jest pusty</MudText>
+            <MudText Typo="Typo.subtitle2">Dodaj produkty do koszyka, aby móc je zamówić.</MudText>
+            <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.ShoppingCart"
+            OnClick="GoToHomePage" data-name="carts-go-to-home-button">Przeglądaj produkty</MudButton>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchQuery" TextChanged="OnSearchProduct" Immediate="true" Label="Szukaj po nazwie" Adornment="Adornment.Start" Icon="@Icons.Material.Filled.Search" data-name="carts-search-input" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTable Items="@carts" Striped="true" Hover="true" Bordered="true" data-name="carts-table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Cena</MudTh>
+                <MudTh>Ilość</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd data-name="@($"carts-column-id-{context.Product.Id}")" DataLabel="Id">@context.Product.Id</MudTd>
+                <MudTd data-name="@($"carts-column-with-id-{context.Product.Id}-product-name")" DataLabel="ProductName">@context.Product.ProductName</MudTd>
+                <MudTd data-name="@($"carts-column-with-id-{context.Product.Id}-price")" DataLabel="Price">@(context.Product.Price.ToCurrencyString())</MudTd>
+                <MudTd data-name="@($"carts-column-with-id-{context.Product.Id}-quantity")" DataLabel="Quantity">
+                    <div class="d-flex">
+                        <MudIconButton Icon="@Icons.Material.Filled.Remove" Color="Color.Primary" Size="Size.Small"
+                            @onclick="() => DecreaseQuantity(context.Product.Id)" data-name="@($"carts-column-with-id-{context.Product.Id}-decrease-quantity")"
+                            Disabled="context.Quantity < 2" />
+
+                        <MudText Class="mx-2">@context.Quantity</MudText>
+
+                        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Primary" Size="Size.Small"
+                            @onclick="() => IncreaseQuantity(context.Product.Id)" data-name="@($"carts-column-with-id-{context.Product.Id}-increase-quantity")" />
+                    </div>
+                </MudTd>
+                <MudTd>
+                    <MudIconButton data-name="@($"carts-column-delete-with-id-{context.Product.Id}")" @onclick="() => DeleteCartItem(context.Product.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudPaper Elevation="2" Class="pa-4 mt-3" data-name="carts-summary">
+            <MudText Typo="Typo.h6">Podsumowanie</MudText>
+            <MudDivider Class="mb-2" />
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle1">Suma kosztów:</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="text-right">
+                    <MudText Typo="Typo.h6" data-name="carts-summary-price">@(CalculatePrice())</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <MudButton Class="mt-2" Color="Color.Primary" OnClick="GoToOrderCreate" Disabled="carts.Count == 0" data-name="carts-order-create">
+            Utwórz zamówienie
+        </MudButton>
+    }
+</MudContainer>
+
+@code {
+    private List<CartItem> carts = [];
+    private List<CartItem> cartsToShow = [];
+    private string searchQuery = string.Empty;
+    private readonly MessageBoxOptions _deleteModalContent = new MessageBoxOptions
+    {
+        Title = "Usuń produkt z koszyka",
+        Message = "Czy chcesz usunąć produkt z koszyka?",
+        YesText = "Tak",
+        NoText = "Nie"
+    };
+    private readonly DialogOptions _deleteModalOptions = new DialogOptions
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+        Position = DialogPosition.Center
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCartItems();
+    }
+
+    private void OnSearchProduct(string term)
+    {
+        cartsToShow = carts
+            .Where(p => p.Product.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void GoToHomePage()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void GoToOrderCreate()
+    {
+        Navigation.NavigateTo("/orders/create");
+    }
+
+    private async Task LoadCartItems()
+    {
+        carts = await CartService.GetCartItems();
+        cartsToShow = carts;
+    }
+
+    private async Task DeleteCartItem(int id)
+    {
+        var messageBoxValue = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
+        if (!messageBoxValue.HasValue || !messageBoxValue.Value)
+        {
+            return;
+        }
+
+        await CartService.RemoveFromCart(id);
+        await RefreshCartItems();
+    }
+
+    private async Task IncreaseQuantity(int productId)
+    {
+        await CartService.IncreaseQuantity(productId);
+        await RefreshCartItems();
+    }
+
+    private async Task DecreaseQuantity(int productId)
+    {
+        await CartService.DecreaseQuantity(productId);
+        await RefreshCartItems();
+    }
+
+    private async Task RefreshCartItems()
+    {
+        await LoadCartItems();
+        OnSearchProduct(searchQuery);
+    }
+
+    private string CalculatePrice()
+    {
+        return carts.Sum(c => c.Quantity * c.Product.Price).ToCurrencyString();
+    }
+}

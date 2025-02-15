@@ -1,0 +1,100 @@
+﻿@using Blazored.FluentValidation
+@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@inject IProductService ProductService
+@inject ITranslateService TranslateService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>Edytuj pozycje</TitleContent>
+    <DialogContent>
+        <EditForm Model="addOrderPositionForm" OnValidSubmit="HandleValidSubmit" >
+            <FluentValidationValidator @ref="fluentValidationValidator" />
+            <MudSelect T="int" Label="Produkt" Value="orderPosition.ProductId" ValueChanged="OnProductChange" For="@(() => addOrderPositionForm.ProductId)" Required="true" data-name="order-position-edit-form-product">
+                <MudSelectItem Value="0" Disabled>-- Wybierz produkt --</MudSelectItem>
+                @foreach (var product in products)
+                {
+                    <MudSelectItem Disabled="(product.ProductStock?.Quantity <= 0)" T="int" Value="@product.Id">@product.ProductName @product.Price.ToCurrencyString()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField Label="Ilość" @bind-Value="addOrderPositionForm.Quantity" Immediate="true" For="@(() => addOrderPositionForm.Quantity)" Required="true" data-name="order-position-edit-form-quantity" />
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="HandleValidSubmit" Color="Color.Primary" data-name="order-position-edit-form-submit-button">Zatwierdź</MudButton>
+        <MudButton OnClick="CloseDialog" Color="Color.Secondary" data-name="order-position-edit-form-cancel-button">Anuluj</MudButton>
+    </DialogActions>
+</MudDialog>
+
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    private IEnumerable<ProductDTO> products = [];
+
+    private AddOrderPositionForm addOrderPositionForm = new();
+    private OrderPositionDTO orderPosition = new OrderPositionDTO(0, 0, 0, 0, 0, string.Empty);
+    private FluentValidationValidator fluentValidationValidator = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private void OnProductChange(int id)
+    {
+        var product = products.FirstOrDefault(p => p.Id == id);
+        if (product is null)
+        {
+            return;
+        }
+
+        addOrderPositionForm.ProductId = id;
+        orderPosition.ProductId = id;
+        orderPosition.ProductName = product.ProductName;
+        orderPosition.Price = product.Price;
+        orderPosition.TotalPrice = product.Price * orderPosition.Quantity;
+    }
+
+    private void HandleValidSubmit()
+    {
+        if (!fluentValidationValidator.Validate())
+        {
+            return;
+        }
+
+        orderPosition.Quantity = addOrderPositionForm.Quantity;
+        orderPosition.TotalPrice = orderPosition.Price * addOrderPositionForm.Quantity;
+        MudDialog.Close(DialogResult.Ok(orderPosition));
+    }
+
+    private void CloseDialog()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            var result = await ProductService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            products = result.Data ?? [];
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania produktów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+}

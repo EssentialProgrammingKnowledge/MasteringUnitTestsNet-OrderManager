@@ -1,0 +1,190 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@inject ICartService CartService
+@inject IOrderService OrderService
+@inject ITranslateService TranslateService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="create-order-loading-icon" />
+    }
+    else
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudTable Items="cartItems" Striped="true" Hover="true" data-name="create-order-products-table">
+                    <HeaderContent>
+                        <MudTh>Produkt</MudTh>
+                        <MudTh>Ilość</MudTh>
+                        <MudTh>Cena</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="item">
+                        <MudTd data-name="@($"create-order-column-product-with-id-{item.Product.Id}-product-name")" DataLabel="ProductId">@item.Product.ProductName</MudTd>
+                        <MudTd data-name="@($"create-order-column-product-with-id-{item.Product.Id}-quantity")" DataLabel="Quantity">@item.Quantity</MudTd>
+                        <MudTd data-name="@($"create-order-column-product-with-id-{item.Product.Id}-price")" DataLabel="Price">@item.Product.Price.ToCurrencyString()</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+
+        <MudPaper Elevation="2" Class="pa-4 mt-3" data-name="create-order-summary">
+            <MudText Typo="Typo.h6">Podsumowanie</MudText>
+            <MudDivider Class="mb-2" />
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle1">Suma kosztów:</MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" Class="text-right">
+                    <MudText Typo="Typo.h6" data-name="create-order-summary-price">@(CalculatePrice())</MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        @if (customers.Any())
+        {
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.h6" data-name="create-order-choose-client">Wybierz klienta</MudText>
+
+                @foreach (var customer in customers)
+                {
+                    <MudCard class="@($"mt-2 cursor-pointer border {(selectedCustomerId == customer.Id ? "bg-primary text-white shadow-lg" : "bg-transparent")} hover:bg-info transition-all")"
+                    @onclick="() => SelectCustomer(customer.Id)" data-name="@($"create-order-customer-{customer.Id}")">
+                        <MudCardContent>
+                            <MudText Typo="Typo.subtitle1" data-name="@($"create-order-customer-{customer.Id}-full-name")">@($"{customer.FirstName} {customer.LastName}")</MudText>
+                            <MudText Typo="Typo.body2" data-name="@($"create-order-customer-{customer.Id}-email")">@customer.Email</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudPaper>
+            <MudButton Color="Color.Primary" OnClick="OpenAddCustomerDialog" data-name="create-order-add-new-customer">Dodaj klienta</MudButton>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Warning" data-name="create-order-empty-clients-info">Brak klientów. Dodaj nowego, aby kontynuować.</MudAlert>
+            <MudButton Color="Color.Primary" OnClick="OpenAddCustomerDialog" data-name="create-order-add-new-customer">Dodaj klienta</MudButton>
+        }
+
+        <MudButton Color="Color.Primary" OnClick="CreateOrder" Disabled="selectedCustomerId == 0" data-name="create-order-submit-button">
+            Utwórz zamówienie
+        </MudButton>
+    }
+</MudContainer>
+
+@code {
+    private const string CUSTOMERS_PATH = "/api/customers";
+
+    private IEnumerable<CartItem> cartItems { get; set; } = [];
+    private IEnumerable<CustomerDTO> customers { get; set; } = [];
+
+    private int selectedCustomerId = 0;
+    private bool isLoading = true;
+
+    private void SelectCustomer(int customerId)
+    {
+        selectedCustomerId = customerId;
+    }
+
+    private string CalculatePrice()
+    {
+        return cartItems.Sum(c => c.Quantity * c.Product.Price).ToCurrencyString();
+    }
+
+    private async Task CreateOrder()
+    {
+        if (selectedCustomerId == 0)
+        {
+            Snackbar.Add("Aby przejść dalej potrzebujesz wybrać dane klienta", Severity.Warning);
+            return;
+        }
+
+        await AddOrder(new AddOrderDTO(
+            selectedCustomerId,
+            cartItems.Select(c => new OrderItemDTO(c.Product.Id, c.Quantity)).ToList())
+        );
+    }
+
+    private async Task OpenAddCustomerDialog()
+    {
+        var options = new DialogOptions { CloseButton = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<CustomerFormComponent>("Dodaj dane klienta", options);
+        var result = await dialog.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var newCustomer = result.Data as CustomerDTO;
+        await AddCustomer(newCustomer);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await CartService.GetTotalItems() == 0)
+        {
+            NavigationManager.NavigateTo("/");
+            return;
+        }
+
+        cartItems = await CartService.GetCartItems();
+        await LoadCustomers();
+        isLoading = false;
+    }
+
+    private async Task LoadCustomers()
+    {
+        customers = await HttpClient.GetFromJsonAsync<IEnumerable<CustomerDTO>>(CUSTOMERS_PATH)
+                            ?? [];
+    }
+
+    private async Task AddCustomer(CustomerDTO? customer)
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        var response = await HttpClient.PostAsJsonAsync(CUSTOMERS_PATH, customer);
+        if (!response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        await LoadCustomers();
+    }
+
+    private async Task AddOrder(AddOrderDTO dto)
+    {
+        if (dto is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var result = await OrderService.Add(dto);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            await CartService.ClearCart();
+            NavigationManager.NavigateTo($"/orders/acceptance/{result.Data?.Id ?? 0}");
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas tworzenia zamówienia", Severity.Error);
+        }
+    }
+}

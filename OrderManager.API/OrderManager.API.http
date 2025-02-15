@@ -1,0 +1,247 @@
+@OrderManager.API_HostAddress = http://localhost:5000/api
+@ProductsAPI = {{OrderManager.API_HostAddress}}/Products
+@CustomersAPI = {{OrderManager.API_HostAddress}}/Customers
+@OrdersAPI = {{OrderManager.API_HostAddress}}/Orders
+
+#### Customers API
+### Get Customers
+GET {{CustomersAPI}}
+Accept: application/json
+
+
+### Add Customer
+POST {{CustomersAPI}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "firstName": "Stanis³aw",
+  "lastName": "Wokulski",
+  "email": "s.wokulski@bilionaire.com"
+}
+
+### Get Customer By Id
+GET {{CustomersAPI}}/4
+Accept: application/json
+
+### Update Customer
+PUT {{CustomersAPI}}/4
+Accept: application/json
+Content-Type: application/json
+
+{
+  "firstName": "Stanis³aw",
+  "lastName": "Wokulski",
+  "email": "s.wokulski@bilionaire.pl"
+}
+
+### Get Customer By Id
+GET {{CustomersAPI}}/4
+Accept: application/json
+
+### Delete Customer
+DELETE {{CustomersAPI}}/4
+Accept: application/json
+
+
+#### Products API
+
+### Get Products
+GET {{ProductsAPI}}
+Accept: application/json
+
+
+### Add Product
+POST {{ProductsAPI}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "productName": "BMW M3 Competition",
+  "price": 500000,
+  "isDigital": false,
+  "productStock": {
+    "quantity": 100
+  }
+}
+
+### Add Product
+POST {{ProductsAPI}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "productName": "Szkolenie C#",
+  "price": 250,
+  "isDigital": true,
+  "productStock": null
+}
+
+### Get Product By Id
+GET {{ProductsAPI}}/4
+Accept: application/json
+
+### Get Product By Id
+GET {{ProductsAPI}}/5
+Accept: application/json
+
+### Update Product
+PUT {{ProductsAPI}}/4
+Accept: application/json
+Content-Type: application/json
+
+{
+  "productName": "BMW M3 Competition",
+  "price": 750000,
+  "isDigital": false,
+  "productStock": {
+    "quantity": 50
+  }
+}
+
+### Update Product
+PUT {{ProductsAPI}}/5
+Accept: application/json
+Content-Type: application/json
+
+{
+  "productName": "Szkolenie C#",
+  "price": 550,
+  "isDigital": true,
+  "productStock": null
+}
+
+### Get Product By Id
+GET {{ProductsAPI}}/4
+Accept: application/json
+
+### Get Product By Id
+GET {{ProductsAPI}}/5
+Accept: application/json
+
+### Delete Product
+DELETE {{ProductsAPI}}/4
+Accept: application/json
+
+### Delete Product
+DELETE {{ProductsAPI}}/5
+Accept: application/json
+
+
+#### Orders API
+
+### Get Orders
+GET {{OrdersAPI}}
+Accept: application/json
+
+### Add Order
+POST {{OrdersAPI}}
+Accept: application/json
+Content-Type: application/json
+
+{
+  "customerId": 1,
+  "positions": [
+    {
+      "productId": 1,
+      "quantity": 5
+    },
+    {
+      "productId": 2,
+      "quantity": 5
+    },
+    {
+      "productId": 1,
+      "quantity": 5
+    },
+    {
+      "productId": 3,
+      "quantity": 5
+    }
+  ]
+}
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Update Order
+PUT {{OrdersAPI}}/1
+Accept: application/json
+Content-Type: application/json
+
+{
+  "customerId": 2,
+  "newPositions": [
+    {
+      "productId": 2,
+      "quantity": 15
+    },
+    {    
+      "productId": 3,
+      "quantity": 5
+    }
+  ],
+  "deletePostions": [
+    1
+  ]
+}
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Add position to order
+POST {{OrdersAPI}}/1/positions
+Accept: application/json
+Content-Type: application/json
+
+{
+  "productId": 2,
+  "quantity": 2
+}
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Modify order's position
+PATCH {{OrdersAPI}}/1/positions/2
+Accept: application/json
+Content-Type: application/json
+
+{
+  "quantity": 2
+}
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Delete position from order
+DELETE {{OrdersAPI}}/1/positions/2
+Accept: application/json
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Modify order's status
+PATCH {{OrdersAPI}}/1/status
+Accept: application/json
+Content-Type: application/json
+
+{
+  "orderStatus": 0
+}
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json
+
+### Delete Order
+DELETE {{OrdersAPI}}/1
+
+### Get Order By Id
+GET {{OrdersAPI}}/1
+Accept: application/json

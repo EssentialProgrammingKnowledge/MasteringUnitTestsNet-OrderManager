@@ -1,0 +1,150 @@
+﻿@using OrderManager.UI.Models
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressCircular Indeterminate="true" data-name="customers-loading-icon"/>
+    }
+    else
+    {
+        <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="async () => { isAdding = true; isEditing = false; customer = new CustomerDTO(); await OpenDialog(); }" data-name="customers-add-button">Dodaj dane klienta</MudButton>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchQuery" TextChanged="OnSearchCustomer" Immediate="true" Label="Szukaj po imieniu lub nazwisku" Adornment="Adornment.Start" Icon="@Icons.Material.Filled.Search" data-name="customers-search-input" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTable Items="customersToShow" Striped="true" Hover="true" Bordered="true" data-name="customers-table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Imię</MudTh>
+                <MudTh>Nazwisko</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd data-name="@($"customers-column-id-{context.Id}")" DataLabel="Id">@context.Id</MudTd>
+                <MudTd data-name="@($"customers-column-with-id-{context.Id}-first-name")" DataLabel="FirstName">@context.FirstName</MudTd>
+                <MudTd data-name="@($"customers-column-with-id-{context.Id}-last-name")" DataLabel="LastName">@context.LastName</MudTd>
+                <MudTd data-name="@($"customers-column-with-id-{context.Id}-email")" DataLabel="Email">@context.Email</MudTd>
+                <MudTd>
+                    <MudTooltip Text="Edytuj dane kontaktowe" Placement="Placement.Top" data-name="@($"customers-column-edit-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"customers-column-edit-with-id-{context.Id}")" OnClick="async () => { isAdding = false; isEditing = true; customer = new CustomerDTO { Id = context.Id, FirstName = context.FirstName, LastName = context.LastName, Email = context.Email }; await OpenDialog(); }" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+                    </MudTooltip>
+                    <MudTooltip Text="Usuń dane kontaktowe" Placement="Placement.Top" data-name="@($"customers-column-delete-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"customers-column-delete-with-id-{context.Id}")" OnClick="() => DeleteCustomer(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private const string CUSTOMERS_PATH = "/api/customers";
+    private List<CustomerDTO> customers = new();
+    private List<CustomerDTO> customersToShow = new();
+    private CustomerDTO customer = new();
+    private bool isLoading = true;
+    private bool isAdding = false;
+    private bool isEditing = false;
+    private string searchQuery = string.Empty;
+    private readonly DialogOptions _customerFormModalOptions = new DialogOptions
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        Position = DialogPosition.Center
+    };
+    private readonly DialogOptions _deleteModalOptions = new DialogOptions
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+        Position = DialogPosition.Center
+    };
+    private readonly MessageBoxOptions _deleteModalContent = new MessageBoxOptions
+    {
+        Title = "Usuń dane klienta",
+        Message = "Czy chcesz usunąć dane klienta?",
+        YesText = "Tak",
+        NoText = "Nie"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private void OnSearchCustomer(string term)
+    {
+        customersToShow = customers
+            .Where(c => c.FirstName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                        || c.LastName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task LoadCustomers()
+    {
+        isLoading = true;
+        customers = await Http.GetFromJsonAsync<List<CustomerDTO>>(CUSTOMERS_PATH) ?? [];
+        isLoading = false;
+    }
+
+    private async Task OpenDialog()
+    {
+        var dialogReference = await DialogService.ShowAsync<CustomerFormComponent>(isAdding ? "Dodaj dane klienta" : "Edytuj dane klienta", new DialogParameters
+        {
+            { "Customer", customer }
+        }, _customerFormModalOptions);
+        var result = await dialogReference.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        customer = result.Data as CustomerDTO ?? new CustomerDTO();
+        await SaveCustomer();
+    }
+
+    private async Task SaveCustomer()
+    {
+        if (string.IsNullOrWhiteSpace(customer.FirstName) || string.IsNullOrWhiteSpace(customer.LastName) || string.IsNullOrWhiteSpace(customer.Email))
+        {
+            Snackbar.Add("Błąd: Imie, Nazwisko i Email są wymagane!", Severity.Error);
+            return;
+        }
+
+        if (isAdding)
+        {
+            await Http.PostAsJsonAsync(CUSTOMERS_PATH, customer);
+            Snackbar.Add("Dodano dane klienta!", Severity.Success);
+        }
+        else if (isEditing)
+        {
+            await Http.PutAsJsonAsync($"{CUSTOMERS_PATH}/{customer.Id}", customer);
+            Snackbar.Add("Zaktualizowano dane klienta!", Severity.Success);
+        }
+
+        await LoadCustomers();
+        OnSearchCustomer(searchQuery);
+    }
+
+    private async Task DeleteCustomer(int id)
+    {
+        var confirm = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
+        if (confirm == true)
+        {
+            await Http.DeleteAsync($"{CUSTOMERS_PATH}/{id}");
+            Snackbar.Add("Usunięto dane klienta!", Severity.Success);
+            await LoadCustomers();
+            OnSearchCustomer(searchQuery);
+        }
+    }
+}
+

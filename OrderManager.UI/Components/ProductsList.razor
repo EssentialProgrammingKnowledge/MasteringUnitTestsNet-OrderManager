@@ -1,0 +1,103 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@using System.Globalization
+@inject IProductService ProductService
+@inject ICartService CartService
+@inject ITranslateService TranslateService
+@inject ISnackbar Snackbar
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="products-list-loading-icon" />
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchQuery" TextChanged="OnSearchProduct" Immediate="true" Label="Szukaj po nazwie" Adornment="Adornment.Start" Icon="@Icons.Material.Filled.Search" data-name="products-list-search-input" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTable Items="productsToShow" Hover="true" Bordered="true" Striped="true" data-name="products-list-table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Cena</MudTh>
+                <MudTh>Na stanie</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="product">
+                <MudTd data-name="@($"products-list-column-id-{product.Id}")" DataLabel="Id">@product.Id</MudTd>
+                <MudTd data-name="@($"products-list-column-with-id-{product.Id}-product-name")" DataLabel="ProductName">@product.ProductName</MudTd>
+                <MudTd data-name="@($"products-list-column-with-id-{product.Id}-price")" DataLabel="Price">@(product.Price.ToCurrencyString())</MudTd>
+                <MudTd data-name="@($"products-list-column-with-id-{product.Id}-quantity")" DataLabel="Stock">
+                    @(product.IsDigital ? "Produkt cyfrowy" : $"{product.ProductStock?.Quantity ?? 0} szt.")
+                </MudTd>
+                <MudTd>
+                    <MudTooltip Text="Dodaj do koszyka" Placement="Placement.Top" data-name="@($"products-list-column-add-to-cart-with-id-{product.Id}-tooltip")">
+                        <MudIconButton Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Primary" OnClick="() => AddToCart(product)" data-name="@($"products-list-column-add-to-cart-with-id-{product.Id}")" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private bool isLoading = true;
+    private string searchQuery = string.Empty;
+    private List<ProductDTO> products = [];
+    private List<ProductDTO> productsToShow = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task AddToCart(ProductDTO product)
+    {
+        await CartService.AddProductToCart(new CartItem
+        {
+            Product = product,
+            Quantity = 1
+        });
+    }
+
+    private void OnSearchProduct(string term)
+    {
+        productsToShow = products
+            .Where(p => p.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            var result = await ProductService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            products = result.Data ?? [];
+            productsToShow = products;
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania produktów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

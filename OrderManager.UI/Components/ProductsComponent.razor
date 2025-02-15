@@ -1,0 +1,271 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@using System.Globalization
+@inject IDialogService DialogService
+@inject IProductService ProductService
+@inject ITranslateService TranslateService
+@inject ISnackbar Snackbar
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="products-loading-icon"/>
+    }
+    else
+    {
+        <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" class="mb-3" @onclick="AddNewProduct" data-name="products-add-button">
+            Dodaj produkt
+        </MudButton>
+
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudTextField @bind-Value="searchQuery" TextChanged="OnSearchProduct" Immediate="true" Label="Szukaj po nazwie" Adornment="Adornment.Start" Icon="@Icons.Material.Filled.Search" data-name="products-search-input" />
+            </MudItem>
+        </MudGrid>
+
+        <MudTable Items="@productsToShow" Striped="true" Hover="true" Bordered="true" data-name="products-table">
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Nazwa</MudTh>
+                <MudTh>Cena</MudTh>
+                <MudTh>Na stanie</MudTh>
+                <MudTh>Akcje</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd data-name="@($"products-column-id-{context.Id}")" DataLabel="Id">@context.Id</MudTd>
+                <MudTd data-name="@($"products-column-with-id-{context.Id}-product-name")" DataLabel="ProductName">@context.ProductName</MudTd>
+                <MudTd data-name="@($"products-column-with-id-{context.Id}-price")" DataLabel="Price">@(context.Price.ToCurrencyString())</MudTd>
+                <MudTd data-name="@($"products-column-with-id-{context.Id}-quantity")" DataLabel="Stock">
+                    @(context.IsDigital ? "Produkt cyfrowy" : $"{context.ProductStock?.Quantity ?? 0} szt.")
+                </MudTd>
+                <MudTd>
+                    <MudTooltip Text="Edytuj przedmiot" Placement="Placement.Top" data-name="@($"products-column-edit-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"products-column-edit-with-id-{context.Id}")" @onclick="() => EditProduct(context.Id)" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+                    </MudTooltip>
+                    <MudTooltip Text="Usuń przedmiot" Placement="Placement.Top" data-name="@($"products-column-delete-with-id-{context.Id}-tooltip")">
+                        <MudIconButton data-name="@($"products-column-delete-with-id-{context.Id}")" @onclick="() => DeleteProduct(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private List<ProductDTO> products = [];
+    private List<ProductDTO> productsToShow = [];
+    private string searchQuery = string.Empty;
+    private readonly MessageBoxOptions _deleteModalContent = new MessageBoxOptions
+    {
+        Title = "Usuń produkt",
+        Message = "Czy chcesz usunąć produkt?",
+        YesText = "Tak",
+        NoText = "Nie"
+    };
+    private readonly DialogOptions _deleteModalOptions = new DialogOptions
+    {
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+        Position = DialogPosition.Center
+    };
+    private readonly DialogOptions _productFormModalOptions = new DialogOptions
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        BackdropClick = false,
+        CloseOnEscapeKey = false,
+        Position = DialogPosition.Center
+    };
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private void OnSearchProduct(string term)
+    {
+        productsToShow = products
+            .Where(p => p.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task AddNewProduct()
+    {
+        var dialogReference = await DialogService.ShowAsync<ProductFormComponent>("Dodaj produkt", _productFormModalOptions);
+        var result = await dialogReference.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var dto = result.Data as ProductDTO;
+        if (dto is null)
+        {
+            return;
+        }
+
+        await SaveProduct(dto);
+        await RefreshProducts();
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        var messageBoxValue = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
+        if (!messageBoxValue.HasValue || !messageBoxValue.Value)
+        {
+            return;
+        }
+
+        var result = await ProductService.Delete(id);
+        if (!result.Valid)
+        {
+            if (result.ErrorMessage is not null)
+            {
+                Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+            }
+
+            return;
+        }
+
+        Snackbar.Add("Pomyślnie usunięto produkt", Severity.Success);
+        await RefreshProducts();
+    }
+
+    private async Task EditProduct(int id)
+    {
+        var product = await LoadProduct(id);
+        if (product is null)
+        {
+            return;
+        }
+
+        var dialogReference = await DialogService.ShowAsync<ProductFormComponent>("Edytuj produkt", new DialogParameters
+        {
+            { "Product", product },
+            { "Title", "Edytuj produkt" }
+        }, _productFormModalOptions);
+        var result = await dialogReference.Result;
+
+        if (result is null || result.Canceled)
+        {
+            return;
+        }
+
+        var dto = result.Data as ProductDTO;
+        if (dto is null)
+        {
+            return;
+        }
+
+        await UpdateProduct(dto);
+        await RefreshProducts();
+    }
+
+    private async Task RefreshProducts()
+    {
+        await LoadProducts();
+        OnSearchProduct(searchQuery);
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            var result = await ProductService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            products = result.Data ?? [];
+            productsToShow = products;
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania produktów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task<ProductDTO?> LoadProduct(int id)
+    {
+        try
+        {
+            var result = await ProductService.GetById(id);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return null;
+            }
+
+            return result.Data;
+        }
+        catch
+        {
+            Snackbar.Add($"Wystąpił błąd podczas pobierania produktu Id {id}. Prosimy spróbować ponownie później", Severity.Error);
+            return null;
+        }
+    }
+
+    private async Task SaveProduct(ProductDTO newProduct)
+    {
+        try
+        {
+            var result = await ProductService.Add(newProduct);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            Snackbar.Add("Pomyślnie dodano produkt", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas dodawnia produktu. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+
+    private async Task UpdateProduct(ProductDTO product)
+    {
+        try
+        {
+            var result = await ProductService.Update(product);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            Snackbar.Add("Pomyślnie zaaktualizowano produkt", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas aktualizacji produktu. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+}

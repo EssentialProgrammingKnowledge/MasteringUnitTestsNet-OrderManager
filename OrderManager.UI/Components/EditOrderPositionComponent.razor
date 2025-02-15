@@ -1,0 +1,62 @@
+﻿@using Blazored.FluentValidation
+@using FluentValidation
+@using OrderManager.UI.Models
+
+<MudDialog>
+    <TitleContent>Edytuj pozycję</TitleContent>
+
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6">@Position.ProductName</MudText>
+            </MudItem>
+            <MudItem xs="12">
+                <EditForm Model="editOrderPosition" OnValidSubmit="Save">
+                    <FluentValidationValidator @ref="fluentValidationValidator" />
+                    <MudTextField Label="Ilość" @bind-Value="editOrderPosition.Quantity" data-name="edit-order-position-quantity" Immediate="true"
+                        For="@(() => editOrderPosition.Quantity)"/>
+                </EditForm>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Save" data-name="edit-order-position-save">Zapisz</MudButton>
+        <MudButton Color="Color.Default" OnClick="Cancel" data-name="edit-order-position-cancel">Anuluj</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public OrderPositionDTO Position { get; set; } = null!;
+
+    private EditOrderPositionForm editOrderPosition = new();
+    private FluentValidationValidator fluentValidationValidator = null!;
+
+    protected override void OnParametersSet()
+    {
+        if (Position is not null)
+        {
+            editOrderPosition.Quantity = Position.Quantity;
+        }
+    }
+
+    private void Save()
+    {
+        if (!fluentValidationValidator.Validate())
+        {
+            return;
+        }
+
+        Position.Quantity = editOrderPosition.Quantity;
+        MudDialog.Close(DialogResult.Ok(Position));
+    }
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+}

@@ -1,0 +1,30 @@
+﻿@using OrderManager.UI.Services
+@inject ICartService CartService
+@inject NavigationManager NavigationManager
+
+<MudBadge Visible="cartItemCount > 0" Content="cartItemCount" Color="Color.Primary" Dot="false" Overlap="true" Bordered="true" data-name="cart-indicator-count" >
+    <MudTooltip Text="Koszyk" Placement="Placement.Left" data-name="cart-indicator-tooltip">
+        <MudIconButton Icon="@Icons.Material.Filled.ShoppingCart" Color="Color.Inherit" OnClick="GoToCart" data-name="cart-button-go-to-cart-page" />
+    </MudTooltip>
+</MudBadge>
+
+@code {
+    private int cartItemCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        CartService.OnCartItemsChanged += OnCartChanged;
+        cartItemCount = await CartService.GetTotalItems();
+    }
+
+    private void OnCartChanged(int itemsCount)
+    {
+        cartItemCount = itemsCount;
+        StateHasChanged();
+    }
+
+    private void GoToCart()
+    {
+        NavigationManager.NavigateTo("/cart");
+    }
+}

@@ -1,0 +1,389 @@
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
+@inject IOrderService OrderService
+@inject ITranslateService TranslateService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject HttpClient HttpClient
+
+<MudContainer>
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" data-name="order-edit-loading-icon" />
+    }
+    else if (order is null)
+    {
+        <MudPaper Class="pa-4 mt-3" data-name="order-edit-not-found-info">
+            <MudText Typo="Typo.h6">Nie znaleziono zamówienia z id @Id</MudText>
+            <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.ShoppingCart"
+            OnClick="GoToOrdersPage" data-name="order-edit-go-to-orders-button">Wróć do zamówień</MudButton>
+        </MudPaper>
+    }
+    else 
+    {
+        @if (!CanEdit)
+        {
+            <MudAlert Severity="Severity.Warning" data-name="order-edit-alert">
+                Edycja zamówienia jest możliwa tylko w statusie <span class="fw-bold">Nowe</span>. Zamówienia @order.OrderNumber ma status <span class="fw-bold">@(TranslateService.Translate("ORDER_STATUS_" + order.OrderStatus.ToString()))</span>.
+            </MudAlert>
+        }
+        else 
+        {
+            <MudPaper Class="pa-4 mb-2" data-name="order-edit-page-info">
+                <MudText Typo="Typo.h4">Edytuj zamówienie #@order.OrderNumber</MudText>
+                <MudText Typo="Typo.h5">Utworzono: @order.CreatedAt.ToLocalDateTime()</MudText>
+                <MudText Typo="Typo.h5">Status: @(TranslateService.Translate("ORDER_STATUS_" + order.OrderStatus.ToString()))</MudText>
+            </MudPaper>
+            <MudPaper Elevation="2" Class="pa-4 mt-3" data-name="order-edit-summary">
+                <MudText Typo="Typo.h6">Podsumowanie</MudText>
+                <MudDivider Class="mb-2" />
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.subtitle1">Suma kosztów:</MudText>
+                    </MudItem>
+                    <MudItem xs="12" sm="6" Class="text-right">
+                        <MudText Typo="Typo.h6" data-name="order-edit-summary-price">@(GetTotalCost())</MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+            <div>
+                <MudButton Color="Color.Primary" data-name="order-edit-submit-button" OnClick="SaveChanges" Disabled="!CanEdit">Zapisz zmiany</MudButton>
+                <MudButton Color="Color.Default" data-name="order-edit-cancel-button" OnClick="Cancel">Anuluj</MudButton>
+            </div>
+            <MudGrid>
+                <MudItem xs="12" md="7">
+                    <MudTable Items="order.Positions" Striped="true" Hover="true" data-name="order-edit-positions">
+                        <HeaderContent>
+                            <MudTh>Produkt</MudTh>
+                            <MudTh>Ilość</MudTh>
+                            <MudTh>Cena</MudTh>
+                            <MudTh>Akcje</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            @if (!orderToUpdateDto.DeletePostions.Contains(item.ProductId))
+                            {
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-product-name")" DataLabel="ProductName">@item.ProductName</MudTd>
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-quantity")" DataLabel="Quantity">@item.Quantity</MudTd>
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-price")" DataLabel="Price">@item.Price.ToCurrencyString()</MudTd>
+                                <MudTd>
+                                    <MudTooltip Text="Edytuj pozycje" Placement="Placement.Top" data-name="@($"order-edit-position-column-edit-with-id-{item.Id}-tooltip")">
+                                        <MudIconButton data-name="@($"order-edit-position-column-edit-with-id-{item.Id}")" OnClick="() => EditPosition(item)" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Disabled="!CanEdit" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Usuń pozycje" Placement="Placement.Top" data-name="@($"order-edit-position-column-delete-with-id-{item.Id}-tooltip")">
+                                        <MudIconButton data-name="@($"order-edit-position-column-delete-with-id-{item.Id}")" OnClick="() => RemovePosition(item.ProductId)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Disabled="!CanEdit" />
+                                    </MudTooltip>
+                                </MudTd>
+                            }
+                            else
+                            {
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-product-name")" Class="text-decoration-line-through deleted-row" DataLabel="ProductName">@item.ProductName</MudTd>
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-quantity")" Class="text-decoration-line-through deleted-row" DataLabel="Quantity">@item.Quantity</MudTd>
+                                <MudTd data-name="@($"order-edit-positions-with-id-{item.Id}-price")" Class="text-decoration-line-through deleted-row" DataLabel="Price">@item.Price.ToCurrencyString()</MudTd>
+                                <MudTd>
+                                    <MudTooltip Text="Przywróć pozycję" Placement="Placement.Top" data-name="@($"order-edit-positions-with-id-{item.Id}-restore-position-tooltip")">
+                                        <MudIconButton OnClick="() => RestorePosition(item.ProductId)" Icon="@Icons.Material.Filled.Restore" Color="Color.Success" data-name="@($"order-edit-positions-with-id-{item.Id}-restore-position-button")" />
+                                    </MudTooltip>
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+
+                    <MudTable Items="orderToUpdateDto.NewPositions" Striped="true" Hover="true" data-name="order-edit-new-positions">
+                        <HeaderContent>
+                            <MudTh>Produkt</MudTh>
+                            <MudTh>Ilość</MudTh>
+                            <MudTh>Akcja</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="item">
+                            @if (!orderToUpdateDto.DeletePostions.Contains(item.ProductId))
+                            {
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-product-name")" DataLabel="ProductName">@item.ProductName</MudTd>
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-quantity")" DataLabel="Quantity">@item.Quantity</MudTd>
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-action")">
+                                    <MudTooltip Text="Usuń nową pozycje" Placement="Placement.Top" data-name="@($"order-edit-add-new-position-column-delete-with-id-{item.ProductId}-tooltip")">
+                                        <MudIconButton data-name="@($"order-edit-add-new-position-column-delete-with-id-{item.ProductId}")" OnClick="() => orderToUpdateDto.NewPositions.Remove(item)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
+                                    </MudTooltip>
+                                </MudTd>
+                            }
+                            else
+                            {
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-product-name")" Class="text-decoration-line-through deleted-row" DataLabel="ProductName">@item.ProductName</MudTd>
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-quantity")" Class="text-decoration-line-through deleted-row" DataLabel="Quantity">@item.Quantity</MudTd>
+                                <MudTd data-name="@($"order-edit-add-new-positions-with-id-{item.ProductId}-action")" Class="text-decoration-line-through deleted-row">
+                                    <MudTooltip Text="Usuń nową pozycje" Placement="Placement.Top" data-name="@($"order-edit-add-new-position-column-delete-with-id-{item.ProductId}-tooltip")">
+                                        <MudIconButton data-name="@($"order-edit-add-new-position-column-delete-with-id-{item.ProductId}")" OnClick="() => orderToUpdateDto.NewPositions.Remove(item)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
+                                    </MudTooltip>
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+
+                    <MudButton Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewPosition" data-name="order-edit-add-new-position-button" Disabled="!CanEdit">Dodaj pozycje</MudButton>
+                </MudItem>
+
+                <MudItem xs="12" md="5" data-name="order-edit-customer-data">
+                    <MudPaper Class="pa-3">
+                        <MudText Typo="Typo.h6">Dane klienta</MudText>
+                        <MudSelect Value="orderToUpdateDto.Customer.Id" T="int" ValueChanged="(customerId) => OnCustomerChange(customerId)" data-name="order-edit-customer-data-selected-cutomer" ReadOnly="!CanEdit">
+                            @foreach (var customer in customers)
+                            {
+                                <MudSelectItem Value="@customer.Id">@($"{customer.FirstName} {customer.LastName}")</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+    }
+</MudContainer>
+
+@code {
+    private const string CUSTOMERS_PATH = "/api/customers";
+
+    [Parameter]
+    public int Id { get; set; }
+
+    private OrderDetailsDTO? order { get; set; }
+    private IEnumerable<CustomerDTO> customers { get; set; } = [];
+
+    private bool isLoading = true;
+    private readonly UpdateOrderDetailsDTO orderToUpdateDto = new();
+    private readonly List<OrderPositionDTO> positionsToModifed = [];
+    private bool CanEdit => order?.OrderStatus == OrderStatus.New;
+    private readonly DialogOptions _modalOptions = new DialogOptions
+    {
+        CloseOnEscapeKey = false,
+        BackdropClick = false,
+        FullWidth = true
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        order = await LoadOrder(Id);
+        customers = await LoadCustomers();
+        isLoading = false;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (order is not null)
+        {
+            orderToUpdateDto.Id = order.Id;
+            orderToUpdateDto.Customer = order.Customer;
+        }
+    }
+
+    private void OnCustomerChange(int id)
+    {
+        var customer = customers.FirstOrDefault(c => c.Id == id);
+        if (customer is null)
+        {
+            return;
+        }
+
+        orderToUpdateDto.Customer = customer;
+    }
+
+    private async void EditPosition(OrderPositionDTO dto)
+    {
+        var dialog = await DialogService.ShowAsync<EditOrderPositionComponent>("Edytuj pozycję", new DialogParameters
+        {
+            { "Position", dto },
+        }, _modalOptions);
+        var result = await dialog.Result;
+        var position = result?.Data as OrderPositionDTO;
+        if (result is null || result.Canceled || position is null)
+        {
+            return;
+        }
+
+        var positionToModifed = order!.Positions.FirstOrDefault(p => p.Id == position?.Id);
+        if (positionToModifed is null)
+        {
+            return;
+        }
+
+        positionToModifed.Price = position.Price;
+        positionToModifed.Quantity = position.Quantity;
+        positionToModifed.TotalPrice = position.Price * position.Quantity;
+        positionsToModifed.Add(position);
+        order.TotalPrice = order.Positions.Sum(p => p.Quantity * p.Price);
+        // added positions forcing to show it on view
+        StateHasChanged();
+    }
+
+    private void RestorePosition(int id)
+    {
+        if (orderToUpdateDto.DeletePostions.Contains(id))
+        {
+            orderToUpdateDto.DeletePostions.Remove(id);
+        }
+    }
+
+    private void RemovePosition(int id)
+    {
+        if (!orderToUpdateDto.DeletePostions.Contains(id))
+        {
+            orderToUpdateDto.DeletePostions.Add(id);
+        }
+    }
+
+    private string GetTotalCost()
+    {
+        var costToDelete = order!.Positions.Where(p => orderToUpdateDto.DeletePostions.Contains(p.ProductId))
+                                                .Sum(p => p.Quantity * p.Price);
+        var costToAdd = orderToUpdateDto.NewPositions
+                .Where(i => !orderToUpdateDto.DeletePostions.Contains(i.ProductId))
+                .Sum(p => p.Quantity * p.Price);
+        return (order.TotalPrice + costToAdd - costToDelete).ToCurrencyString();
+    }
+
+    private async Task AddNewPosition()
+    {
+        var dialog = await DialogService.ShowAsync<AddOrderPositionComponent>("Dodaj nową pozycję", _modalOptions);
+        var result = await dialog.Result;
+        var position = result?.Data as OrderPositionDTO;
+        if (result is null || result.Canceled || position is null)
+        {
+            return;
+        }
+
+        if (orderToUpdateDto.DeletePostions.Any(p => p == position.ProductId))
+        {
+            Snackbar.Add("Aby dodać element przywróć pozycję na zamówieniu", Severity.Error);
+            return;
+        }
+
+        orderToUpdateDto.NewPositions.Add(position);
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("/orders");
+    }
+
+    private void GoToOrdersPage()
+    {
+        NavigationManager.NavigateTo("/orders");
+    }
+
+    private async Task<List<CustomerDTO>> LoadCustomers()
+    {
+        return await HttpClient.GetFromJsonAsync<List<CustomerDTO>>(CUSTOMERS_PATH) ?? [];
+    }
+
+    private async Task SaveChanges()
+    {
+        if (positionsToModifed.Count > 0)
+        {
+            await UpdatePosition(positionsToModifed);
+        }
+        await UpdateOrder(new UpdateOrderDTO
+        {
+            Id = orderToUpdateDto.Id,
+            CustomerId = orderToUpdateDto.Customer.Id,
+            NewPositions = orderToUpdateDto.GetDistinctPositions(),
+            DeletePostions = orderToUpdateDto.DeletePostions,
+        });
+        orderToUpdateDto.NewPositions.Clear();
+        orderToUpdateDto.DeletePostions.Clear();
+        positionsToModifed.Clear();
+    }
+
+    private async Task UpdatePosition(IEnumerable<OrderPositionDTO> dtos)
+    {
+        try
+        {
+            var result = await OrderService.UpdatePositions(Id, dtos.Select(dto => new OrderItemDTO(dto.ProductId, dto.Quantity)));
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+                
+                order = await LoadOrder(Id);
+                return;
+            }
+
+            order = result.Data;
+            Snackbar.Add("Pomyślnie zaaktualizowano pozycje", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas aktualizacji pozycji zamówienia. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+
+    private async Task UpdateOrder(UpdateOrderDTO dto)
+    {
+        try
+        {
+            var result = await OrderService.Update(dto);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                order = await LoadOrder(Id);
+                return;
+            }
+
+            order = result.Data;
+            Snackbar.Add("Pomyślnie zaaktualizowano zamówienie", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas aktualizacji zamówienia. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+
+    private async Task<OrderDetailsDTO?> LoadOrder(int id)
+    {
+        try
+        {
+            var result = await OrderService.GetById(Id);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return null;
+            }
+
+            return result.Data;
+        }
+        catch
+        {
+            Snackbar.Add($"Wystąpił błąd podczas pobierania danych o zamówieniu Id {id}. Prosimy spróbować ponownie później", Severity.Error);
+            return null;
+        }
+    }
+
+    private record UpdateOrderDetailsDTO
+    {
+        public int Id { get; set; }
+        public CustomerDTO Customer { get; set; } = null!;
+        public List<OrderPositionDTO> NewPositions { get; set; } = [];
+        public List<int> DeletePostions { get; set; } = [];
+
+        public List<OrderItemDTO> GetDistinctPositions()
+        {
+            if (NewPositions is null)
+            {
+                return [];
+            }
+            return NewPositions
+                .Where(i => !DeletePostions.Contains(i.ProductId))
+                .GroupBy(i => i.ProductId)
+                .Select(group => new OrderItemDTO(group.Key, group.Sum(i => i.Quantity)))
+                .ToList();
+        }
+    }
+}

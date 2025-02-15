@@ -1,0 +1,5 @@
+﻿.deleted-row {
+    text-decoration: line-through;
+    background-color: #f8d7da;
+    opacity: 0.6;
+}

@@ -1,0 +1,46 @@
+﻿@using Blazored.FluentValidation
+@using OrderManager.UI.Models
+
+<MudDialog>
+    <TitleContent>@(Customer is not null && Customer.Id > 0 ? "Edytuj dane klienta" : "Dodaj dane klienta")</TitleContent>
+    <DialogContent>
+        <EditForm Model="newCustomer" OnValidSubmit="() => MudDialog.Close(DialogResult.Ok(newCustomer))">
+            <FluentValidationValidator @ref="fluentValidationValidator" />
+            <MudTextField Label="Imię" @bind-Value="newCustomer.FirstName"
+                          For="@(() => newCustomer.FirstName)" Required="true"
+                          data-name="customer-form-firstname" />
+            <MudTextField Label="Nazwisko" @bind-Value="newCustomer.LastName"
+                          For="@(() => newCustomer.LastName)" Required="true"
+                          data-name="customer-form-lastname" />
+            <MudTextField Label="E-mail" @bind-Value="newCustomer.Email"
+                          For="@(() => newCustomer.Email)" Required="true"
+                          data-name="customer-form-email" />
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="() => { if (fluentValidationValidator.Validate()) { MudDialog.Close(DialogResult.Ok(newCustomer)); } }" data-name="customer-form-submit">Zapisz</MudButton>
+        <MudButton Color="Color.Default" OnClick="() => MudDialog.Cancel()" data-name="customer-form-cancel">Anuluj</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public CustomerDTO? Customer { get; set; } = null;
+
+    private CustomerDTO newCustomer = new();
+    private FluentValidationValidator fluentValidationValidator = null!;
+
+    protected override void OnParametersSet()
+    {
+        if (Customer is not null)
+        {
+            newCustomer.Id = Customer.Id;
+            newCustomer.FirstName = Customer.FirstName;
+            newCustomer.LastName = Customer.LastName;
+            newCustomer.Email = Customer.Email;
+        }
+    }
+}

@@ -1,0 +1,97 @@
+﻿@using Blazored.FluentValidation
+@using OrderManager.UI.Models
+
+<MudDialog>
+    <TitleContent>@Title</TitleContent>
+    <DialogContent>
+        <EditForm EditContext="editContext" OnValidSubmit="Submit">
+            <FluentValidationValidator @ref="fluentValidationValidator" />
+            <MudTextField Label="Nazwa" @bind-Value="newProduct.ProductName" For="@(() => newProduct.ProductName)" Immediate="true" Required="true" data-name="product-form-product-name" />
+            <MudTextField Label="Kwota [PLN]" @bind-Value="newProduct.Price" For="@(() => newProduct.Price)" Immediate="true" Required="true" data-name="product-form-price" />
+            <MudSwitch Value="newProduct.IsDigital" Label="Czy produkt jest cyfrowy?" T="bool" ValueChanged="OnDigitalChanged" Color="Color.Primary" data-name="product-form-is-digital" />
+            <MudTextField Label="Ilość w magazynie"
+                @bind-Value="newProduct.ProductStock!.Quantity"
+                For="@(() => newProduct.ProductStock!.Quantity)"
+                Immediate="true"
+                Required="!newProduct.IsDigital"
+                data-name="product-form-quantity"
+                Disabled="newProduct.IsDigital"
+                Class="mt-3" />
+        </EditForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" @onclick="Submit" data-name="product-form-submit" >Zapisz</MudButton>
+        <MudButton Color="Color.Default" @onclick="Cancel" data-name="product-form-cancel" >Anuluj</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string Title { get; set; } = "Dodaj produkt";
+
+    [Parameter]
+    public ProductDTO? Product { get; set; } = null;
+
+    private EditContext editContext = null!;
+    private FluentValidationValidator fluentValidationValidator = null!;
+    private ProductDTO newProduct = new ProductDTO() { IsDigital = true, ProductStock = new ProductStockDTO(0) };
+
+    protected override void OnInitialized()
+    {
+        editContext = new EditContext(newProduct);
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (Product is not null)
+        {
+            newProduct.Id = Product.Id;
+            newProduct.ProductName = Product.ProductName;
+            newProduct.Price = Product.Price;
+            newProduct.IsDigital = Product.IsDigital;
+            newProduct.ProductStock = Product.ProductStock is not null ? 
+                new ProductStockDTO(Product.ProductStock.Quantity)
+                : new ProductStockDTO(0);
+        }
+    }
+
+    private void Submit()
+    {
+        if(!fluentValidationValidator.Validate())
+        {
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(new ProductDTO
+        {
+            Id = newProduct.Id,
+            ProductName = newProduct.ProductName,
+            Price = newProduct.Price,
+            IsDigital = newProduct.IsDigital,
+            ProductStock = newProduct.IsDigital 
+                ? null
+                : new ProductStockDTO(newProduct.ProductStock?.Quantity ?? 0)
+        }));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void OnDigitalChanged(bool value)
+    {
+        newProduct.IsDigital = value;
+
+        if (value)
+        {
+            newProduct.ProductStock!.Quantity = Product?.ProductStock?.Quantity ?? 0;
+        }
+        else
+        {
+            newProduct.ProductStock = new ProductStockDTO(Product?.ProductStock?.Quantity ?? 0);
+        }
+
+        editContext.Validate();
+    }
+}
