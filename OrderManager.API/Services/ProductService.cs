@@ -136,7 +136,7 @@ namespace OrderManager.API.Services
                 return ValidationResult.FailureResult(ProductErrorMessages.ProductStockMustBePresent(dto.Id));
             }
 
-            if (dto.ProductStock.Quantity <= 0)
+            if (dto.ProductStock.Quantity < 0)
             {
                 return ValidationResult.FailureResult(ProductErrorMessages.ProductStockQuantityMustBeGreaterThanZero(dto.Id, dto.ProductStock.Quantity));
             }

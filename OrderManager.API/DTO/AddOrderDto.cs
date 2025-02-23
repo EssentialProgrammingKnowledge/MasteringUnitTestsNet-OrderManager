@@ -5,8 +5,9 @@
         public int CustomerId { get; init; }
         public List<OrderItemDTO> Positions { get; init; } = [];
 
-        public AddOrderDto(List<OrderItemDTO> positions)
+        public AddOrderDto(int customerId, List<OrderItemDTO> positions)
         {
+            CustomerId = customerId;
             Positions = GetDistinctPositions(positions);
         }
 

@@ -7,9 +7,10 @@
         public List<OrderItemDTO> NewPositions { get; init; } = [];
         public List<int> DeletePostions { get; init; } = [];
 
-        public UpdateOrderDto(int id, List<OrderItemDTO> newPositions, List<int>? deletePostions = null)
+        public UpdateOrderDto(int id, int customerId, List<OrderItemDTO> newPositions, List<int>? deletePostions = null)
         {
             Id = id;
+            CustomerId = customerId;
             NewPositions = GetDistinctPositions(newPositions);
             DeletePostions = deletePostions ?? [];
         }

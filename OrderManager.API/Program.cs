@@ -2,6 +2,9 @@ using OrderManager.API.Database;
 using OrderManager.API.Dispatchers;
 using OrderManager.API.Repositories;
 using OrderManager.API.Services;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("OrderManager.UnitTests")]
 
 const string CORS_POLICY = "OrderManagerApiPolicy";
 var builder = WebApplication.CreateBuilder(args);
