@@ -38,7 +38,7 @@ namespace OrderManager.API.Models
             }
 
             var quantityAfterUpdate = ProductStock!.Quantity - quantity;
-            if (quantityAfterUpdate <= 0)
+            if (quantityAfterUpdate < 0)
             {
                 return false;
             }

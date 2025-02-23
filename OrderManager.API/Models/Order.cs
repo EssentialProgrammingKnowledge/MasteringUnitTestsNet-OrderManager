@@ -154,7 +154,7 @@ namespace OrderManager.API.Models
             return ModifyPositionInternal(position, product) switch
             {
                 PositionResult.Success => ValidationResult.SuccessResult(),
-                PositionResult.NotFound => ValidationResult.FailureResult(OrderErrorMessages.PositionNotFound(Id, product.Id)),
+                PositionResult.NotFound => ValidationResult.FailureResult(OrderErrorMessages.PositionNotFound(Id, position.ProductId)),
                 PositionResult.NotAvailable => ValidationResult.FailureResult(ProductErrorMessages.ProductNotAvailable(product.Id)),
                 PositionResult.Invalid => ValidationResult.FailureResult(OrderErrorMessages.InvalidPosition()),
                 _ => ValidationResult.FailureResult(OrderErrorMessages.InvalidPosition())
