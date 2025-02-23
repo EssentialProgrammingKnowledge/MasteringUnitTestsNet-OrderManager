@@ -9,5 +9,6 @@ namespace OrderManager.API.Repositories
         Task<Customer> Update(Customer customer);
         Task<bool> Delete(Customer customer);
         Task<IEnumerable<Customer>> GetAll();
+        Task<bool> HasAnyOrder(int id);
     }
 }

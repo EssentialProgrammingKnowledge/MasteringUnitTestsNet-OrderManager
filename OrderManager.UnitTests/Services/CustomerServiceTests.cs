@@ -3,6 +3,7 @@ using OrderManager.API.DTO;
 using OrderManager.API.Models;
 using OrderManager.API.Repositories;
 using OrderManager.API.Services;
+using OrderManager.API.Validations;
 using Shouldly;
 
 namespace OrderManager.UnitTests.Services
@@ -15,8 +16,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("    ")]
         public async Task AddCustomer_InvalidFirstName_ShouldReturnBadRequest(string? firstName)
         {
-            // Arrange Act
-            var result = await _customerService.AddCustomer(new CustomerDTO(0, firstName!, "lastName", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(0, firstName!, "lastName", "email@email.com");
+            var expectedError = CustomerErrorMessages.FirstNameCannotBeEmpty(customer.Id);
+
+            // Act
+            var result = await _customerService.AddCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -24,6 +29,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Add(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -31,8 +41,12 @@ namespace OrderManager.UnitTests.Services
         [Fact]
         public async Task AddCustomer_TooLongFirstName_ShouldReturnBadRequest()
         {
-            // Arrange Act
-            var result = await _customerService.AddCustomer(new CustomerDTO(0, "FirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstName12", "lastName", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(0, "FirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstName12", "lastName", "email@email.com");
+            var expectedError = CustomerErrorMessages.FirstNameTooLong(100, customer.FirstName.Length);
+            
+            // Act
+            var result = await _customerService.AddCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -40,6 +54,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Add(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -50,8 +69,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("    ")]
         public async Task AddCustomer_InvalidLastName_ShouldReturnBadRequest(string? lastName)
         {
-            // Arrange Act
-            var result = await _customerService.AddCustomer(new CustomerDTO(0, "FirstName", lastName!, "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(0, "FirstName", lastName!, "email@email.com");
+            var expectedError = CustomerErrorMessages.LastNameCannotBeEmpty(customer.Id);
+            
+            // Act
+            var result = await _customerService.AddCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -59,6 +82,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Add(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -66,8 +94,12 @@ namespace OrderManager.UnitTests.Services
         [Fact]
         public async Task AddCustomer_TooLongLastName_ShouldReturnBadRequest()
         {
-            // Arrange Act
-            var result = await _customerService.AddCustomer(new CustomerDTO(0, "FirstName", "LastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastName12345", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(0, "FirstName", "LastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastName12345", "email@email.com");
+            var expectedError = CustomerErrorMessages.LastNameTooLong(100, customer.LastName.Length);
+            
+            // Act
+            var result = await _customerService.AddCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -75,6 +107,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Add(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -91,8 +128,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("testemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytestemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytestemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytest1234567890K@aa.aa.aaaaaaaaaaaaaaaaaaaaaaaabcdefg")]
         public async Task AddCustomer_InvalidEmail_ShouldReturnBadRequest(string? email)
         {
-            // Arrange Act
-            var result = await _customerService.AddCustomer(new CustomerDTO(0, "firstName", "lastName", email!));
+            // Arrange
+            var customer = new CustomerDTO(0, "firstName", "lastName", email!);
+            var expectedError = CustomerErrorMessages.InvalidEmail(customer.Email);
+
+            // Act
+            var result = await _customerService.AddCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -100,6 +141,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Add(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -129,8 +175,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("    ")]
         public async Task UpdateCustomer_InvalidFirstName_ShouldReturnBadRequest(string? firstName)
         {
-            // Arrange Act
-            var result = await _customerService.UpdateCustomer(new CustomerDTO(0, firstName!, "lastName", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(1, firstName!, "lastName", "email@email.com");
+            var expectedError = CustomerErrorMessages.FirstNameCannotBeEmpty(customer.Id);
+            
+            // Act
+            var result = await _customerService.UpdateCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -138,6 +188,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -145,8 +200,12 @@ namespace OrderManager.UnitTests.Services
         [Fact]
         public async Task UpdateCustomer_TooLongFirstName_ShouldReturnBadRequest()
         {
-            // Arrange Act
-            var result = await _customerService.UpdateCustomer(new CustomerDTO(1, "FirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstName12", "lastName", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(1, "FirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstNameFirstName12", "lastName", "email@email.com");
+            var expectedError = CustomerErrorMessages.FirstNameTooLong(100, customer.FirstName.Length);
+            
+            // Act
+            var result = await _customerService.UpdateCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -154,6 +213,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -164,8 +228,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("    ")]
         public async Task UpdateCustomer_InvalidLastName_ShouldReturnBadRequest(string? lastName)
         {
-            // Arrange Act
-            var result = await _customerService.UpdateCustomer(new CustomerDTO(1, "FirstName", lastName!, "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(1, "FirstName", lastName!, "email@email.com");
+            var expectedError = CustomerErrorMessages.LastNameCannotBeEmpty(customer.Id);
+            
+            // Act
+            var result = await _customerService.UpdateCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -173,6 +241,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -180,8 +253,12 @@ namespace OrderManager.UnitTests.Services
         [Fact]
         public async Task UpdateCustomer_TooLongLastName_ShouldReturnBadRequest()
         {
-            // Arrange Act
-            var result = await _customerService.UpdateCustomer(new CustomerDTO(1, "FirstName", "LastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastName12345", "email@email.com"));
+            // Arrange
+            var customer = new CustomerDTO(1, "FirstName", "LastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastNameLastName12345", "email@email.com");
+            var expectedError = CustomerErrorMessages.LastNameTooLong(100, customer.LastName.Length);
+            
+            // Act
+            var result = await _customerService.UpdateCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -189,6 +266,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -205,8 +287,12 @@ namespace OrderManager.UnitTests.Services
         [InlineData("testemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytestemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytestemail1234123467890456456345emailaaaaaaaaaaatest1234567890qweretytest1234567890K@aa.aa.aaaaaaaaaaaaaaaaaaaaaaaabcdefg")]
         public async Task UpdateCustomer_InvalidEmail_ShouldReturnBadRequest(string? email)
         {
-            // Arrange Act
-            var result = await _customerService.UpdateCustomer(new CustomerDTO(1, "firstName", "lastName", email!));
+            // Arrange
+            var customer = new CustomerDTO(1, "firstName", "lastName", email!);
+            var expectedError = CustomerErrorMessages.InvalidEmail(customer.Email);
+            
+            // Act
+            var result = await _customerService.UpdateCustomer(customer);
 
             // Assert
             result.ShouldNotBeNull();
@@ -214,6 +300,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -223,6 +314,7 @@ namespace OrderManager.UnitTests.Services
         {
             // Arrange
             var id = 1;
+            var expectedError = CustomerErrorMessages.NotFound(id);
 
             // Act
             var result = await _customerService.UpdateCustomer(new CustomerDTO(id, "firstName", "lastName", "email@email.com"));
@@ -233,6 +325,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.NotFound);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.Update(It.IsAny<Customer>()), Times.Never());
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
@@ -274,6 +371,7 @@ namespace OrderManager.UnitTests.Services
         {
             // Arrange
             var id = 1;
+            var expectedError = CustomerErrorMessages.NotFound(id);
 
             // Act
             var result = await _customerService.DeleteCustomer(id);
@@ -283,6 +381,11 @@ namespace OrderManager.UnitTests.Services
             result.Success.ShouldBeFalse();
             result.StatusCode.ShouldBe(StatusCode.NotFound);
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -300,6 +403,8 @@ namespace OrderManager.UnitTests.Services
                 Email = "email@email.com",
             };
             _customerRepository.Setup(c => c.GetById(id)).ReturnsAsync(customer);
+            _customerRepository.Setup(c => c.HasAnyOrder(id)).ReturnsAsync(true);
+            var expectedError = CustomerErrorMessages.CannotDeleteCustomerWithOrders(id);
 
             // Act
             var result = await _customerService.DeleteCustomer(id);
@@ -309,7 +414,13 @@ namespace OrderManager.UnitTests.Services
             result.Success.ShouldBeFalse();
             result.StatusCode.ShouldBe(StatusCode.BadRequest);
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
+            _customerRepository.Verify(c => c.HasAnyOrder(id), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
         }
 
@@ -325,7 +436,9 @@ namespace OrderManager.UnitTests.Services
                 LastName = "LastName",
                 Email = "email@email.com",
             });
+            _customerRepository.Setup(c => c.HasAnyOrder(id)).ReturnsAsync(false);
             _customerRepository.Setup(c => c.Delete(It.IsAny<Customer>())).ReturnsAsync(false);
+            var expectedError = CustomerErrorMessages.NotFound(id);
 
             // Act
             var result = await _customerService.DeleteCustomer(id);
@@ -334,8 +447,14 @@ namespace OrderManager.UnitTests.Services
             result.ShouldNotBeNull();
             result.Success.ShouldBeFalse();
             result.StatusCode.ShouldBe(StatusCode.NotFound);
-            result.ErrorMessage.ShouldBeNull();
+            result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
+            _customerRepository.Verify(c => c.HasAnyOrder(id), Times.Once());
             _customerRepository.Verify(c => c.Delete(It.IsAny<Customer>()), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -352,6 +471,7 @@ namespace OrderManager.UnitTests.Services
                 LastName = "LastName",
                 Email = "email@email.com",
             });
+            _customerRepository.Setup(c => c.HasAnyOrder(id)).ReturnsAsync(false);
             _customerRepository.Setup(c => c.Delete(It.IsAny<Customer>())).ReturnsAsync(true);
 
             // Act
@@ -363,6 +483,7 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.NoContent);
             result.ErrorMessage.ShouldBeNull();
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
+            _customerRepository.Verify(c => c.HasAnyOrder(id), Times.Once());
             _customerRepository.Verify(c => c.Delete(It.IsAny<Customer>()), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
         }
@@ -410,6 +531,7 @@ namespace OrderManager.UnitTests.Services
         {
             // Arrange
             var id = 1;
+            var expectedError = CustomerErrorMessages.NotFound(id);
 
             // Act
             var result = await _customerService.GetCustomerById(id);
@@ -420,6 +542,11 @@ namespace OrderManager.UnitTests.Services
             result.StatusCode.ShouldBe(StatusCode.NotFound);
             result.Data.ShouldBeNull();
             result.ErrorMessage.ShouldNotBeNull();
+            result.ErrorMessage.Code.ShouldBe(expectedError.Code);
+            result.ErrorMessage.Message.ShouldBe(expectedError.Message);
+            result.ErrorMessage.Parameters.ShouldNotBeNull();
+            result.ErrorMessage.Parameters.Keys.ShouldBe(expectedError.Parameters!.Keys);
+            result.ErrorMessage.Parameters.Values.ShouldBe(expectedError.Parameters.Values);
             _customerRepository.Verify(c => c.GetById(id), Times.Once());
             _customerRepository.VerifyNoOtherCalls();
         }

@@ -34,6 +34,11 @@ namespace OrderManager.API.Repositories
                                      .FirstOrDefaultAsync(c => c.Id == id);
         }
 
+        public async Task<bool> HasAnyOrder(int id)
+        {
+            return await orderContext.Orders.AnyAsync(c => c.CustomerId == id);
+        }
+
         public async Task<Customer> Update(Customer customer)
         {
             orderContext.Customers.Update(customer);

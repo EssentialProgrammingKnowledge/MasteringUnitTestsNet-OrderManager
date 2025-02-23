@@ -5,6 +5,7 @@
         public static IServiceCollection AddServices(this IServiceCollection services)
         {
             services.AddScoped<IProductService, ProductService>();
+            services.AddScoped<ICustomerService, CustomerService>();
             return services;
         }
     }
