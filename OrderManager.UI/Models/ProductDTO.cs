@@ -26,7 +26,7 @@ namespace OrderManager.UI.Models
                 .MaximumLength(200);
 
             RuleFor(p => p.Price)
-                .GreaterThanOrEqualTo(0);
+                .GreaterThan(0);
 
             RuleFor(p => p.ProductStock)
                 .NotNull().When(p => !p.IsDigital);

@@ -10,13 +10,13 @@
             <MudTextField Label="Kwota [PLN]" @bind-Value="newProduct.Price" For="@(() => newProduct.Price)" Immediate="true" Required="true" data-name="product-form-price" />
             <MudSwitch Value="newProduct.IsDigital" Label="Czy produkt jest cyfrowy?" T="bool" ValueChanged="OnDigitalChanged" Color="Color.Primary" data-name="product-form-is-digital" />
             <MudTextField Label="Ilość w magazynie"
-                @bind-Value="newProduct.ProductStock!.Quantity"
-                For="@(() => newProduct.ProductStock!.Quantity)"
-                Immediate="true"
-                Required="!newProduct.IsDigital"
-                data-name="product-form-quantity"
-                Disabled="newProduct.IsDigital"
-                Class="mt-3" />
+            @bind-Value="newProduct.ProductStock!.Quantity"
+            For="@(() => newProduct.ProductStock!.Quantity)"
+            Immediate="true"
+            Required="!newProduct.IsDigital"
+            data-name="product-form-quantity"
+            Disabled="newProduct.IsDigital"
+            Class="mt-3" />
         </EditForm>
     </DialogContent>
     <DialogActions>
@@ -60,7 +60,7 @@
 
     private void Submit()
     {
-        if(!fluentValidationValidator.Validate())
+        if (!fluentValidationValidator.Validate())
         {
             return;
         }
