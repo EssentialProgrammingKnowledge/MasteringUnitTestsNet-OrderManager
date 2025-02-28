@@ -2,9 +2,9 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
-using MudBlazor.Services;
 using OrderManager.UI.Components;
 using OrderManager.UI.Models;
+using OrderManager.UI.UnitTests.Common;
 using Shouldly;
 using System.Globalization;
 
@@ -273,11 +273,7 @@ namespace OrderManager.UI.UnitTests.Components
 
         public ProductFormComponentTests()
         {
-            _testContext = new TestContext();
-            _testContext.Services.AddMudServices();
-            _testContext.JSInterop.SetupVoid("mudKeyInterceptor.connect", _ => true);
-            _testContext.JSInterop.SetupVoid("mudKeyInterceptor.disconnect", _ => true);
-            _testContext.JSInterop.SetupVoid("mudScrollManager.unlockScroll", _ => true);
+            _testContext = new ConfiguredTestContext();
         }
     }
 }
