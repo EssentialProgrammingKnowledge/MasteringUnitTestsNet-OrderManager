@@ -18,7 +18,7 @@ namespace OrderManager.API.Validations
             return new ErrorMessage("CUSTOMER_CANNOT_DELETE_WITH_ORDERS", $"Customer with id '{customerId}' cannot be deleted because of existing orders.",
                 new Dictionary<string, object>
                 {
-                    { "Id", customerId }
+                    { "CustomerId", customerId }
                 });
         }
 
@@ -53,7 +53,7 @@ namespace OrderManager.API.Validations
 
         public static ErrorMessage LastNameCannotBeEmpty(int customerId)
         {
-            return new ErrorMessage("CUSTOMER_FIRST_NAME_CANNOT_BE_EMPTY", $"The customer with id '{customerId}' cannot have an empty last name.",
+            return new ErrorMessage("CUSTOMER_LAST_NAME_CANNOT_BE_EMPTY", $"The customer with id '{customerId}' cannot have an empty last name.",
                 new Dictionary<string, object>
                 {
                     { "CustomerId", customerId }

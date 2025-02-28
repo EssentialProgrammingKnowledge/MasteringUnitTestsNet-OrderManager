@@ -6,6 +6,7 @@
         {
             services.AddScoped<IProductService, ProductService>();
             services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<ICustomerService, CustomerService>();
             services.AddSingleton<ICartService, CartService>();
             return services;
         }

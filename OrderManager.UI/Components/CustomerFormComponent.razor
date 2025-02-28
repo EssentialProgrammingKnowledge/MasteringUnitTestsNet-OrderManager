@@ -2,7 +2,7 @@
 @using OrderManager.UI.Models
 
 <MudDialog>
-    <TitleContent>@(Customer is not null && Customer.Id > 0 ? "Edytuj dane klienta" : "Dodaj dane klienta")</TitleContent>
+    <TitleContent>@Title</TitleContent>
     <DialogContent>
         <EditForm Model="newCustomer" OnValidSubmit="() => MudDialog.Close(DialogResult.Ok(newCustomer))">
             <FluentValidationValidator @ref="fluentValidationValidator" />
@@ -18,14 +18,17 @@
         </EditForm>
     </DialogContent>
     <DialogActions>
-        <MudButton Color="Color.Primary" OnClick="() => { if (fluentValidationValidator.Validate()) { MudDialog.Close(DialogResult.Ok(newCustomer)); } }" data-name="customer-form-submit">Zapisz</MudButton>
-        <MudButton Color="Color.Default" OnClick="() => MudDialog.Cancel()" data-name="customer-form-cancel">Anuluj</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit" data-name="customer-form-submit">Zapisz</MudButton>
+        <MudButton Color="Color.Default" OnClick="Cancel" data-name="customer-form-cancel">Anuluj</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter]
     private IMudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public string Title { get; set; } = "Dodaj dane klienta";
 
     [Parameter]
     public CustomerDTO? Customer { get; set; } = null;
@@ -43,4 +46,16 @@
             newCustomer.Email = Customer.Email;
         }
     }
+
+    private void Submit()
+    {
+        if (!fluentValidationValidator.Validate())
+        {
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(newCustomer));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
 }

@@ -1,7 +1,10 @@
-﻿@using OrderManager.UI.Models
+﻿@using OrderManager.UI.Languages
+@using OrderManager.UI.Models
+@using OrderManager.UI.Services
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
-@inject HttpClient Http
+@inject ICustomerService CustomerService
+@inject ITranslateService TranslateService
 
 <MudContainer>
     @if (isLoading)
@@ -10,7 +13,7 @@
     }
     else
     {
-        <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="async () => { isAdding = true; isEditing = false; customer = new CustomerDTO(); await OpenDialog(); }" data-name="customers-add-button">Dodaj dane klienta</MudButton>
+        <MudButton Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewCustomer" data-name="customers-add-button">Dodaj dane klienta</MudButton>
 
         <MudGrid>
             <MudItem xs="12" sm="6" md="4">
@@ -33,7 +36,7 @@
                 <MudTd data-name="@($"customers-column-with-id-{context.Id}-email")" DataLabel="Email">@context.Email</MudTd>
                 <MudTd>
                     <MudTooltip Text="Edytuj dane kontaktowe" Placement="Placement.Top" data-name="@($"customers-column-edit-with-id-{context.Id}-tooltip")">
-                        <MudIconButton data-name="@($"customers-column-edit-with-id-{context.Id}")" OnClick="async () => { isAdding = false; isEditing = true; customer = new CustomerDTO { Id = context.Id, FirstName = context.FirstName, LastName = context.LastName, Email = context.Email }; await OpenDialog(); }" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+                        <MudIconButton data-name="@($"customers-column-edit-with-id-{context.Id}")" OnClick="() => EditCustomer(context.Id)" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
                     </MudTooltip>
                     <MudTooltip Text="Usuń dane kontaktowe" Placement="Placement.Top" data-name="@($"customers-column-delete-with-id-{context.Id}-tooltip")">
                         <MudIconButton data-name="@($"customers-column-delete-with-id-{context.Id}")" OnClick="() => DeleteCustomer(context.Id)" Icon="@Icons.Material.Filled.Delete" Color="Color.Error" />
@@ -45,7 +48,6 @@
 </MudContainer>
 
 @code {
-    private const string CUSTOMERS_PATH = "/api/customers";
     private List<CustomerDTO> customers = new();
     private List<CustomerDTO> customersToShow = new();
     private CustomerDTO customer = new();
@@ -88,18 +90,44 @@
             .ToList();
     }
 
-    private async Task LoadCustomers()
+    private async Task RefreshCustomers()
     {
-        isLoading = true;
-        customers = await Http.GetFromJsonAsync<List<CustomerDTO>>(CUSTOMERS_PATH) ?? [];
-        isLoading = false;
+        await LoadCustomers();
+        OnSearchCustomer(searchQuery);
     }
 
-    private async Task OpenDialog()
+    private async Task AddNewCustomer()
     {
-        var dialogReference = await DialogService.ShowAsync<CustomerFormComponent>(isAdding ? "Dodaj dane klienta" : "Edytuj dane klienta", new DialogParameters
+        var dialogReference = await DialogService.ShowAsync<CustomerFormComponent>("Dodaj dane klienta", _customerFormModalOptions);
+        var result = await dialogReference.Result;
+
+        if (result is null || result.Canceled)
         {
-            { "Customer", customer }
+            return;
+        }
+
+        var dto = result.Data as CustomerDTO;
+        if (dto is null)
+        {
+            return;
+        }
+
+        await SaveCustomer(dto);
+        await RefreshCustomers();
+    }
+
+    private async Task EditCustomer(int id)
+    {
+        var customer = await LoadCustomer(id);
+        if (customer is null)
+        {
+            return;
+        }
+
+        var dialogReference = await DialogService.ShowAsync<CustomerFormComponent>("Edytuj dane klienta", new DialogParameters
+        {
+            { "Customer", customer },
+            { "Title", "Edytuj dane klienta" }
         }, _customerFormModalOptions);
         var result = await dialogReference.Result;
 
@@ -108,42 +136,135 @@
             return;
         }
 
-        customer = result.Data as CustomerDTO ?? new CustomerDTO();
-        await SaveCustomer();
-    }
-
-    private async Task SaveCustomer()
-    {
-        if (string.IsNullOrWhiteSpace(customer.FirstName) || string.IsNullOrWhiteSpace(customer.LastName) || string.IsNullOrWhiteSpace(customer.Email))
+        var dto = result.Data as CustomerDTO;
+        if (dto is null)
         {
-            Snackbar.Add("Błąd: Imie, Nazwisko i Email są wymagane!", Severity.Error);
             return;
         }
 
-        if (isAdding)
-        {
-            await Http.PostAsJsonAsync(CUSTOMERS_PATH, customer);
-            Snackbar.Add("Dodano dane klienta!", Severity.Success);
-        }
-        else if (isEditing)
-        {
-            await Http.PutAsJsonAsync($"{CUSTOMERS_PATH}/{customer.Id}", customer);
-            Snackbar.Add("Zaktualizowano dane klienta!", Severity.Success);
-        }
+        await UpdateCustomer(dto);
+        await RefreshCustomers();
+    }
 
-        await LoadCustomers();
-        OnSearchCustomer(searchQuery);
+    private async Task SaveCustomer(CustomerDTO newCustomer)
+    {
+        try
+        {
+            var result = await CustomerService.Add(newCustomer);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            Snackbar.Add("Pomyślnie dodano dane klienta", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas dodawnia danych klienta. Prosimy spróbować ponownie później", Severity.Error);
+        }
+    }
+
+    private async Task UpdateCustomer(CustomerDTO customer)
+    {
+        try
+        {
+            var result = await CustomerService.Update(customer);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            Snackbar.Add("Pomyślnie zaaktualizowano dane klienta", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas aktualizacji danych klienta. Prosimy spróbować ponownie później", Severity.Error);
+        }
     }
 
     private async Task DeleteCustomer(int id)
     {
-        var confirm = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
-        if (confirm == true)
+        var messageBoxValue = await DialogService.ShowMessageBox(_deleteModalContent, _deleteModalOptions);
+        if (!messageBoxValue.HasValue || !messageBoxValue.Value)
         {
-            await Http.DeleteAsync($"{CUSTOMERS_PATH}/{id}");
-            Snackbar.Add("Usunięto dane klienta!", Severity.Success);
-            await LoadCustomers();
-            OnSearchCustomer(searchQuery);
+            return;
+        }
+
+        var result = await CustomerService.Delete(id);
+        if (!result.Valid)
+        {
+            if (result.ErrorMessage is not null)
+            {
+                Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+            }
+
+            return;
+        }
+
+        Snackbar.Add("Pomyślnie usunięto dane klienta!", Severity.Success);
+        await RefreshCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        try
+        {
+            isLoading = true;
+            var result = await CustomerService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            customers = result.Data ?? [];
+            customersToShow = customers;
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania danych klientów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task<CustomerDTO?> LoadCustomer(int id)
+    {
+        try
+        {
+            var result = await CustomerService.GetById(id);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return null;
+            }
+
+            return result.Data;
+        }
+        catch
+        {
+            Snackbar.Add($"Wystąpił błąd podczas pobierania danych klienta Id {id}. Prosimy spróbować ponownie później", Severity.Error);
+            return null;
         }
     }
 }

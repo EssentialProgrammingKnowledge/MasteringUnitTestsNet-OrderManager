@@ -10,9 +10,11 @@ namespace OrderManager.UI.Languages
         {
             { "CUSTOMER_NOT_FOUND", "Klient o identyfikatorze '{Id}' nie został znaleziony." },
             { "CUSTOMER_CANNOT_DELETE_WITH_ORDERS", "Klient o identyfikatorze '{CustomerId}' nie może zostać usunięty, ponieważ posiada istniejące zamówienia." },
+            { "CUSTOMER_FIRST_NAME_CANNOT_BE_EMPTY", "Imię nie może być puste na danych klienta o identyfikatorze '{CustomerId}'." },
             { "CUSTOMER_FIRST_NAME_TOO_LONG", "Imię klienta jest zbyt długie. Oczekiwana długość: '{ExpectedLength}', aktualna długość: '{CurrentLength}'." },
+            { "CUSTOMER_LAST_NAME_CANNOT_BE_EMPTY", "Nazwisko nie może być puste na danych klienta o identyfikatorze '{CustomerId}'." },
             { "CUSTOMER_LAST_NAME_TOO_LONG", "Nazwisko klienta jest zbyt długie. Oczekiwana długość: '{ExpectedLength}', aktualna długość: '{CurrentLength}'." },
-            { "CUSTOMER_NAME_TOO_LONG", "Email klienta jest zbyt długi. Oczekiwana długość: '{ExpectedLength}', aktualna długość: '{CurrentLength}'." },
+            { "CUSTOMER_INVALID_EMAIL", "Email '{Email}' jest niepoprawny." },
             { "PRODUCT_NOT_FOUND", "Produkt o identyfikatorze '{Id}' nie został znaleziony." },
             { "PRODUCTS_NOT_FOUND", "Produkty o identyfikatorach '{MissingProductIds}' nie zostały znalezione." },
             { "PRODUCTS_NOT_AVAILABLE", "Produkty o identyfikatorach '{NotAvailableProductIds}' nie są dostępne." },

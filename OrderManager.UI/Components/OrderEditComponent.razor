@@ -6,7 +6,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
-@inject HttpClient HttpClient
+@inject ICustomerService CustomerService
 
 <MudContainer>
     @if (isLoading)
@@ -140,8 +140,6 @@
 </MudContainer>
 
 @code {
-    private const string CUSTOMERS_PATH = "/api/customers";
-
     [Parameter]
     public int Id { get; set; }
 
@@ -162,7 +160,7 @@
     protected override async Task OnInitializedAsync()
     {
         order = await LoadOrder(Id);
-        customers = await LoadCustomers();
+        await LoadCustomers();
         isLoading = false;
     }
 
@@ -269,9 +267,32 @@
         NavigationManager.NavigateTo("/orders");
     }
 
-    private async Task<List<CustomerDTO>> LoadCustomers()
+    private async Task LoadCustomers()
     {
-        return await HttpClient.GetFromJsonAsync<List<CustomerDTO>>(CUSTOMERS_PATH) ?? [];
+        try
+        {
+            isLoading = true;
+            var result = await CustomerService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            customers = result.Data ?? [];
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania danych klientów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task SaveChanges()

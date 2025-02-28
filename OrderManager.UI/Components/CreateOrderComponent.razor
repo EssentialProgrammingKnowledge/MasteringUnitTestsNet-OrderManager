@@ -7,7 +7,7 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NavigationManager NavigationManager
-@inject HttpClient HttpClient
+@inject ICustomerService CustomerService
 
 <MudContainer>
     @if (isLoading)
@@ -77,8 +77,6 @@
 </MudContainer>
 
 @code {
-    private const string CUSTOMERS_PATH = "/api/customers";
-
     private IEnumerable<CartItem> cartItems { get; set; } = [];
     private IEnumerable<CustomerDTO> customers { get; set; } = [];
 
@@ -139,8 +137,30 @@
 
     private async Task LoadCustomers()
     {
-        customers = await HttpClient.GetFromJsonAsync<IEnumerable<CustomerDTO>>(CUSTOMERS_PATH)
-                            ?? [];
+        try
+        {
+            isLoading = true;
+            var result = await CustomerService.GetAll();
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            customers = result.Data ?? [];
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas pobierania danych klientów. Prosimy spróbować ponownie później", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
     private async Task AddCustomer(CustomerDTO? customer)
@@ -149,13 +169,8 @@
         {
             return;
         }
-
-        var response = await HttpClient.PostAsJsonAsync(CUSTOMERS_PATH, customer);
-        if (!response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
+        
+        await SaveCustomer(customer);
         await LoadCustomers();
     }
 
@@ -185,6 +200,29 @@
         catch
         {
             Snackbar.Add("Wystąpił błąd podczas tworzenia zamówienia", Severity.Error);
+        }
+    }
+
+    private async Task SaveCustomer(CustomerDTO newCustomer)
+    {
+        try
+        {
+            var result = await CustomerService.Add(newCustomer);
+            if (!result.Valid)
+            {
+                if (result.ErrorMessage is not null)
+                {
+                    Snackbar.Add(TranslateService.Translate(result.ErrorMessage), Severity.Error);
+                }
+
+                return;
+            }
+
+            Snackbar.Add("Pomyślnie dodano dane klienta", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Wystąpił błąd podczas dodawnia danych klienta. Prosimy spróbować ponownie później", Severity.Error);
         }
     }
 }
