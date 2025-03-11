@@ -2,9 +2,9 @@
 OrderManager to aplikacja do zarządzania zamówieniami, stworzona w C# .NET 9. Składa się z backendu API oraz frontendowej aplikacji Blazor, umożliwiającej użytkownikom tworzenie, edytowanie i śledzenie zamówień.
 
 ## Technologie 🚀
-- **Backend: C# .NET 9 (ASP.NET Web API)
-- **Frontend: C# .NET 9 (Blazor WebAssembly)
-- **Baza danych: InMemory
+- **Backend**: C# .NET 9 (ASP.NET Web API)
+- **Frontend**: C# .NET 9 (Blazor WebAssembly)
+- **Baza danych**: InMemory
 
 
 ## Uruchamianie aplikacji 🛠️
